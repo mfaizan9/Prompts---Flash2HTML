@@ -1,0 +1,227 @@
+================================================================================
+FLASH (AS1) -> HTML5 CONVERSION PROMPT  --  EXACT-REPLICA MODE
+For Claude Code. One folder in, one HTML5 folder out. No further editing intended.
+================================================================================
+
+ROLE
+You are converting a legacy Adobe Flash astronomy simulation into a self-contained
+HTML5/CSS/JS version that is a PIXEL-AND-BEHAVIOR REPLICA of the original. The
+source has already been decompiled with JPEXS (FFDec). You will NOT run Flash,
+Ruffle, or any emulator. Your ground truth is the decompiled ActionScript plus the
+exported assets in the folder. Work entirely from those files.
+
+These simulations are ActionScript 1 (AS1): prototype-based classes bound to library
+symbols via Object.registerClass, animation driven by onEnterFrame + getTimer(),
+and a large amount of vector art DRAWN IN CODE (createEmptyMovieClip, drawArc,
+beginFill/lineTo/curveTo, attachMovie) rather than exported as static images.
+
+--------------------------------------------------------------------------------
+PRIME DIRECTIVE
+--------------------------------------------------------------------------------
+Produce an EXACT REPLICA: same functionality, same layout, same dimensions, same
+fonts, same colors, same behavior, same on-screen text. Do NOT improve, modernize,
+recolor, rename, or add features. Accessibility is explicitly OUT OF SCOPE for this
+pass (it is handled later). Your only job is fidelity to the original.
+
+If fidelity and your instinct to "clean things up" ever conflict, choose fidelity.
+
+--------------------------------------------------------------------------------
+HARD RULES (violating any of these is a failed conversion)
+--------------------------------------------------------------------------------
+1. EXACT visual output: stage dimensions, element positions, sizes, colors, alpha,
+   fonts, and font sizes match the original. Match colors by the numeric ARGB/RGB
+   values found in the ActionScript and shape files -- do not "pick a close color."
+2. EXACT functionality: every interactive control, drag behavior, animation,
+   randomized decay/recombination logic, queueing, and state transition behaves as
+   the source code dictates.
+3. EXACT text: all labels, button text, help/about/dialog copy, log entries, and
+   number formatting are reproduced VERBATIM from the source (educational text must
+   be character-for-character identical, including units and scientific notation).
+4. EXACT numbers: copy every physical constant, table, and formula verbatim from
+   the AS (e.g. 13.6, decay/recombination probability tables, transition-ID tables).
+   Never round, simplify, or "correct" them.
+5. NO new features. Specifically do NOT add Pause, Reset, keyboard support, ARIA,
+   recoloring, dark mode, responsive scaling, or reduced-motion handling in this
+   pass. (You will instead NOTE where a later accessibility pass should add them --
+   see DELIVERABLES.)
+6. NO frameworks, NO build step, NO bundler, NO network requests at runtime. Vanilla
+   HTML + CSS + JS only. Must run by opening index.html directly (file://) offline.
+7. Do not delete or modify any source file (.fla, .swf, decompiled folders). Read only.
+
+--------------------------------------------------------------------------------
+EXPECTED INPUT FOLDER (JPEXS export layout)
+--------------------------------------------------------------------------------
+The simulation folder contains a subset of:
+  <name>.fla                  Flash source (do not rely on; reference only)
+  <name>.swf                  compiled movie (do not run; reference only)
+  scripts/                    ActionScript -- THE PRIMARY SOURCE OF TRUTH
+    *.as                        top-level prototype classes + helpers
+    frame_1/...                 main-timeline frame scripts
+    DefineSprite_<id>_<name>/   per-symbol frame scripts (onClipEvent etc.)
+  shapes/        *.svg         static exported vector shapes (PARTIAL art only)
+  sprites/       DefineSprite* per-sprite shape/timeline data
+  images/        *.png         bitmaps (may be empty)
+  fonts/         *.ttf         embedded fonts (e.g. Verdana, WP Greek Century)
+  texts/         *.txt         exported static text strings
+  frames/        1.png         rendered screenshot of frame 1 (visual reference)
+  symbolClass/   symbols.csv   maps symbol id -> class/linkage name
+  morphshapes/, movies/        (often empty)
+
+symbols.csv is your map from a library linkage name (the string passed to
+Object.registerClass and attachMovie) to its symbol id, so you can find that
+symbol's shapes/sprites/scripts.
+
+--------------------------------------------------------------------------------
+RENDERING ARCHITECTURE (required)
+--------------------------------------------------------------------------------
+Use a HYBRID:
+  - A single HTML5 <canvas> for the simulation "stage" -- everything that is drawn
+    in code or animated (orbits, electrons, photons, proton, energy bars, markers,
+    progress dots, masks). Recreate the AS drawing calls on the 2D canvas context.
+  - HTML/CSS elements positioned over/around the canvas for native widgets that the
+    original built from MovieClips: push buttons, sliders/scrollbars, text labels,
+    numeric readouts, the log panel, and modal dialogs. Style them to MATCH the
+    original's appearance (size, color, font, border) -- not to look modern.
+Set the canvas to the original STAGE dimensions in CSS pixels (no scaling this pass).
+Use the frames/1.png screenshot to verify initial-state layout visually.
+
+If a particular sim is almost entirely code-drawn, it is acceptable to render more
+of it on the canvas; if it is almost entirely static shapes, lean on positioned
+<img>/<svg>. Decide per sim, but always preserve exact layout and behavior.
+
+--------------------------------------------------------------------------------
+HOW TO TRANSLATE AS1 IDIOMS (this collection's actual patterns)
+--------------------------------------------------------------------------------
+- Object.registerClass("Symbol Name", FooClass) + FooClass.prototype = new MovieClip()
+    -> a plain JS class/constructor "Foo" with the same methods. The symbol becomes a
+       logical display object you draw/position yourself.
+- Constructor body that calls createEmptyMovieClip/attachMovie/lineStyle/beginFill/
+  moveTo/lineTo/curveTo/drawArc/endFill
+    -> reproduce as canvas drawing commands. Keep the SAME coordinates, radii, colors,
+       and alpha. Note: AS color ints are decimal RGB (e.g. 16777215 = #FFFFFF,
+       65280 = #00FF00); the second arg to beginFill/lineStyle is alpha 0-100 -> /100.
+- Custom MovieClip.prototype.drawArc (present in this collection): it tessellates an
+  arc with curveTo. On canvas, ctx.arc gives the same visual result; match center,
+  radius, start/end angle. AS uses screen-Y-down with sin negated (y - r*sin); mirror
+  that so orbital motion matches.
+- onEnterFrame = func  ->  a requestAnimationFrame loop that calls the same logic.
+- getTimer()  ->  performance.now() (ms since load). Keep the SAME timing constants
+  (e.g. standardDecayTime = 2500 ms). Compare against an absolute waitTime the same way.
+  Use elapsed wall-clock time, not a frame counter, so timing matches across machines.
+- updateAfterEvent()  ->  no-op (or trigger an immediate redraw); not needed with rAF.
+- Drag pattern (onPress sets onMouseMove; onRelease/onReleaseOutside clears it; uses
+  _xmouse, _x, xOffset, snapping to nearest of levelPositions[]) -> implement with
+  pointerdown/pointermove/pointerup on the canvas, hit-testing the draggable object,
+  applying the SAME offset math and the SAME nearest-position snapping. Preserve the
+  "ghost" electron (electron2MC alpha/position) behavior exactly.
+- _x,_y,_alpha,_visible,_rotation,_xscale  -> your object's x,y,alpha,visible,
+  rotation,scale, applied when drawing. _rotation is DEGREES; convert for Math.* trig.
+- attachMovie("Linkage", name, depth, initObj) -> instantiate the corresponding JS
+  object, set its initial props from initObj, add to a depth-ordered draw list.
+- setMask / createEmptyMovieClip mask -> emulate with ctx.save + clip() using the
+  same rectangle/shape, or by clipping draw regions. Preserve the clipped bounds.
+- Number.prototype.toFixed polyfill / scientific-notation formatting -> reproduce the
+  EXACT output formatting the code produces (digits, "x 10^n" style, sign), because it
+  appears verbatim on screen and in the log.
+- trace(...) -> drop (or console.log behind a const DEBUG=false). Never ships visible.
+- _root / _parent / _parent._parent chains -> resolve to explicit references between
+  your objects (e.g. simulator.atomDiagram, simulator.log). Keep the same wiring.
+- FUIComponent / FPushButton / FScrollBar (Flash UI component classes in scripts/)
+    -> you do NOT need to reimplement the Flash component framework. Reproduce only the
+       OBSERVABLE behavior and look of each button/slider/scrollbar as used by this sim.
+
+--------------------------------------------------------------------------------
+FONTS
+--------------------------------------------------------------------------------
+Self-host the exported .ttf files from fonts/ via @font-face and use them by their
+real family names (e.g. Verdana, "WP Greek Century"). Copy the .ttf files into the
+output assets/fonts/ folder. Match the original font SIZES (in px/pt as the source
+text fields specify). Do not substitute system fonts unless a font file is missing;
+if one is missing, note the substitution in CONVERSION_NOTES.md.
+
+--------------------------------------------------------------------------------
+PROCESS (follow in order)
+--------------------------------------------------------------------------------
+PHASE 1 -- CATALOG
+  - List the folder. Read symbolClass/symbols.csv to map linkage names <-> symbols.
+  - Read EVERY .as file under scripts/ (top-level and per-sprite/frame). These define
+    all behavior. Identify the main controller class (often "The Simulator" or the
+    main timeline frame script) and trace how it wires the sub-objects together.
+  - Open frames/1.png to see the intended initial layout. Open the relevant shapes/
+    *.svg and images/*.png to know exact geometry/colors of static art.
+  - Read texts/*.txt and any in-AS string literals for verbatim copy.
+  - Write a one-paragraph plain-language behavior model at the top of
+    CONVERSION_NOTES.md (what it teaches, what the user can do, what changes on screen).
+    If you cannot describe it plainly, re-read the source before coding.
+
+PHASE 2 -- BUILD STATE + RENDER
+  - Define ONE plain JS state object holding every value the screen derives from
+    (levels, positions, current animation phase, log entries, timers, etc.).
+  - Write a single render() that draws the entire stage from state each frame. All
+    user actions mutate state, then request a render. (This single-source-of-truth
+    structure is also what makes the later accessibility pass cheap -- keep it clean.)
+  - Recreate code-drawn art on canvas with matching coordinates/colors/alpha.
+  - Place native HTML widgets for buttons/sliders/log/dialogs, styled to match.
+
+PHASE 3 -- WIRE BEHAVIOR
+  - Port each prototype method faithfully. Preserve randomized logic (decay/
+    recombination probability tables, Math.random selection loop) exactly as written;
+    do not replace with a "nicer" distribution.
+  - Preserve queueing/animation-in-progress guards, waitTime timing, and the exact
+    photon/excitation/ionization/recombination branching from firePhoton and the
+    onEnterFrame functions.
+  - Implement drag with the identical offset + nearest-snapping math.
+
+PHASE 4 -- SELF-VERIFY AGAINST SOURCE (no emulator)
+  Walk this checklist by reading your output against the AS source and frames/1.png:
+    [ ] Stage size, background, and initial element positions match 1.png.
+    [ ] Every constant/table/formula copied verbatim from the AS.
+    [ ] Every interactive control present and wired to the same effect.
+    [ ] Drag behavior (offset, snapping, ghost element, alpha) matches the AS.
+    [ ] Animation timings use the same ms constants and getTimer->now() logic.
+    [ ] All on-screen/log/dialog text is verbatim; number formatting matches.
+    [ ] Fonts self-hosted and sized to match.
+    [ ] No console errors; runs offline from html5/index.html; no network requests.
+    [ ] No added features (no Pause/Reset/ARIA/recolor) in this pass.
+  Fix every mismatch. Do not declare done with open items.
+
+--------------------------------------------------------------------------------
+OUTPUT
+--------------------------------------------------------------------------------
+Create a subfolder named "html5/" INSIDE the simulation folder and write ALL output
+there. Do not write any output files into the simulation folder's root or into the
+decompiled source folders (scripts/, shapes/, sprites/, etc.) -- those are read-only
+source. If an html5/ folder already exists, overwrite its contents. The result is:
+
+  <simulation folder>/
+    html5/
+      index.html          single entry point
+      styles/styles.css   all styling (match original look)
+      simulation.js       all logic (one file; split only if genuinely large)
+      assets/             copied images/, fonts/ (.ttf), and any data the sim needs
+      CONVERSION_NOTES.md  behavior model; AS-construct -> HTML5 mapping; any forced
+                           substitutions; AND a section titled "DEFERRED ACCESSIBILITY
+                           (do not implement now)" listing the spots a later ADA/WCAG
+                           pass will touch: color-only signaling, palette contrast,
+                           missing Pause/Reset, keyboard/ARIA needs, alt/desc text.
+
+All asset references in index.html/CSS/JS must be RELATIVE to html5/ (e.g.
+assets/fonts/Verdana.ttf), so the html5/ folder is self-contained and can be copied
+out on its own and still run by opening html5/index.html offline.
+
+Keep simulation.js readable: comment the physics with the formula it implements
+(e.g. // E_n = -13.6 / n^2 eV), favor obvious code over clever code.
+
+--------------------------------------------------------------------------------
+WHEN TO STOP AND ASK
+--------------------------------------------------------------------------------
+Stop and ask the user (do not guess) if:
+  - the decompiled AS for a behavior is missing, truncated, or contradictory,
+  - a needed asset (shape/font/image) failed to export,
+  - a constant or formula a readout depends on cannot be found in the AS,
+  - text appears to be placeholder/truncated in the source.
+Educational correctness is non-negotiable; a wrong number is worse than a question.
+
+================================================================================
+END OF PROMPT
+================================================================================
