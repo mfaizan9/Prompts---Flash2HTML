@@ -198,6 +198,12 @@ HARD RULES
      gaps) so panels, fieldsets, and rows breathe equally; avoid one cramped row next to
      a loose one. Text inside a box/panel has balanced internal padding on all sides and
      is not jammed against an edge.
+   - Consistent small-box (text box / input / readout) dimensions: text boxes, number
+     inputs, and small readout fields that serve the same role share the SAME width and
+     height -- pick consistent sizes (driven by content/character width) and reuse them
+     so fields don't appear in a jumble of mismatched sizes. Align them on a shared grid
+     so their left and right edges line up down a column and their baselines align across
+     a row; equal-purpose fields are visually equal. Avoid arbitrary per-field widths.
    - Symmetry & rhythm: panels and control groups feel balanced; related controls are
      grouped and aligned to the same grid; headings, body text, and controls follow a
      clear visual hierarchy. Prefer CSS grid/flex alignment over manual pixel nudging.
@@ -500,8 +506,9 @@ PHASE 4 -- SELF-VERIFY (no emulator)
     [ ] Targets >=44px; no hover-only controls.
     [ ] Visual polish: text/controls aligned on shared edges and baselines (label/value
         columns line up, numbers decimal/right-aligned), consistent spacing, balanced box
-        padding, clear symmetry/hierarchy; nothing misaligned, clipped, or overlapping at
-        any supported width or zoom.
+        padding, clear symmetry/hierarchy; equal-purpose text boxes/inputs/readouts share
+        consistent width/height and aligned edges; nothing misaligned, clipped, or
+        overlapping at any supported width or zoom.
     Hygiene
     [ ] No console errors when SERVED OVER HTTP; loads via a local static server (and on
         the cloud host); no network requests beyond foundation/contents.json and the
