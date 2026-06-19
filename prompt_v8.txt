@@ -1,0 +1,644 @@
+================================================================================
+FLASH (AS1) -> HTML5 CONVERSION PROMPT  --  ACCESSIBLE / KL-UNL PIPELINE MODE
+For Claude Code. One decompiled sim folder in; an accessible HTML5 sim that plugs
+into the KL-UNL foundation, out. Functionality identical to the original; layout
+and chrome follow the KL-UNL pipeline + accessibility guidelines (NOT the old Flash
+pixel layout).
+================================================================================
+
+ROLE
+You convert a legacy Adobe Flash astronomy simulation (already decompiled with JPEXS
+/ FFDec) into a self-contained, ADA-Title-II / WCAG 2.1 AA HTML5 simulation that
+behaves identically to the original and is built on the shared KL-UNL foundation
+files. You will NOT run Flash, Ruffle, or any emulator. Your ground truth for
+BEHAVIOR is the decompiled ActionScript (AS1: prototype classes via
+Object.registerClass, onEnterFrame + getTimer(), SOME art drawn in code via
+createEmptyMovieClip/drawArc/beginFill/lineTo/curveTo/attachMovie) plus EXPORTED
+assets -- bitmaps in images/ and vector shapes in shapes/ -- which are REUSED AS-IS,
+never redrawn. Your ground truth for CHROME, STYLE, and LAYOUT is the KL-UNL foundation
+files and the accessibility rules below.
+
+--------------------------------------------------------------------------------
+TWO GOALS, AND HOW THEY RELATE
+--------------------------------------------------------------------------------
+GOAL A -- FUNCTIONAL PARITY (hard, exact):
+  Same controls, same drag behavior, same animations, same randomized decay/
+  recombination logic, same state transitions, same physics constants/tables/
+  formulas, same on-screen/log/dialog TEXT and the same number formatting. Copy
+  every constant and every piece of educational text VERBATIM from the source.
+
+GOAL B -- ACCESSIBLE KL-UNL PRESENTATION (hard):
+  The sim is rendered inside the KL-UNL shell using the foundation files, follows
+  the WCAG 2.1 AA rules below, and therefore does NOT reproduce the original Flash
+  pixel layout, palette, fonts, or masthead. Layout fidelity means PANEL STRUCTURE
+  and pedagogical grouping (which panels exist, what each contains, their reading
+  order), expressed with KL-UNL CSS classes -- not original coordinates.
+
+GOAL C -- VISUAL LAYOUT REPLICATION (soft; below A, B, and template usage):
+  The linked folder contains a SCREENSHOT of the existing Flash sim (e.g. frames/1.png,
+  or another provided image of the running original). Use it as the reference for the
+  sim's visual layout and replicate the original's look as closely as possible WITHIN
+  the KL-UNL shell: the arrangement and grouping of panels, what each panel contains,
+  relative positioning, reading order, and the general visual impression. Match the
+  original's layout intent so a user familiar with the Flash version recognizes it.
+  This is a strong preference, NOT a license to override the higher priorities.
+
+PRIORITY ORDER (when these pull against each other):
+  1. Functionality / behavioral parity (Goal A) and educational correctness.
+  2. Accessibility (WCAG 2.1 AA) and correct KL-UNL template/foundation usage (Goal B).
+  3. Visual layout replication of the screenshot (Goal C).
+So: replicate the screenshot's layout as much as possible, but never by breaking
+accessibility, changing behavior, abandoning the KL-UNL classes/shell, or hardcoding
+the original's pixel coordinates/palette/fonts in a way that violates A or B. Where the
+screenshot's layout cannot be matched without sacrificing a higher priority, approximate
+it as closely as the KL-UNL shell allows and note the divergence in CONVERSION_NOTES.md.
+
+If A and B conflict (e.g. a color-coded state, an unstoppable animation, a missing
+Reset), satisfy B (accessibility) and record the deviation in CONVERSION_NOTES.md.
+Behavior of the underlying physics/logic is never changed to satisfy B -- only its
+presentation (color, motion, labeling, controls) adapts.
+
+--------------------------------------------------------------------------------
+THE KL-UNL FOUNDATION (in the linked folder; copied in UNCHANGED; do not edit the code)
+--------------------------------------------------------------------------------
+THE LINKED SIM FOLDER CONTAINS a foundation/ subfolder holding the KL-UNL files
+(kl-unl-masthead.js, contents.json, kl-unl.css, kl-unl.js, and any MathJax include the
+demo uses). You must COPY that whole foundation/ folder, BYTE-FOR-BYTE UNCHANGED, into
+html5/foundation/ in the output (see OUTPUT section for the exact layout). The ONLY file
+whose CONTENT you may change is the COPIED per-sim contents.json, and only by ADDING this
+sim's entry (see THE ONE PERMITTED CONTENTS EDIT). Never edit kl-unl-masthead.js,
+kl-unl.css, or kl-unl.js.
+
+Find the foundation/ folder at the root of the linked sim folder (beside scripts/,
+shapes/, the .fla/.swf, etc.). If it is absent or missing one of the four files, STOP and
+ask -- do not invent them or fetch them from anywhere.
+
+Because index.html lives in html5/ and the foundation files live in html5/foundation/,
+the HTML is exactly one level above the foundation folder. This matches the masthead
+component's own internal defaults (it references ../foundation/contents.json and
+../foundation/kl-unl.css relative to ITSELF, i.e. relative to html5/foundation/, which
+resolves to html5/...). Pass json-url="foundation/contents.json" from the <kl-unl-
+masthead> tag (path relative to index.html), and link the CSS/JS from index.html as
+"foundation/kl-unl.css" and "foundation/kl-unl.js". Do not rewrite the paths INSIDE
+the foundation files to make this work -- the one-level layout already lines them up.
+
+What the foundation files do:
+  - kl-unl-masthead.js : a Shadow-DOM custom element <kl-unl-masthead> that renders
+      the title bar plus Reset / Help / About buttons and their modal dialog, reading
+      its text from contents.json by sim-id. It dispatches a bubbling, composed
+      CustomEvent "sim-reset" when Reset is pressed. Help/About content comes from
+      contents.json; the component manages the dialog, focus, and Escape itself.
+  - contents.json : per-sim data keyed by sim-id -> { meta:{title,version},
+      masthead:{ help:{title,content}, about:{title,content} } }. Help content of ""
+      (empty string) means NO Help button is shown.
+  - kl-unl.css : shared palette (CSS custom properties like --foreground-color,
+      --background-color, --button-*, --alert-color-*, --outline-color) and layout
+      classes: .app-shell, .app-shell__backdrop, .app-layout (+ __left/__right),
+      .panel (+ __heading/__canvas-wrap/__help), .control-fieldset (+ __legend),
+      .control-row (+ __label/__input/__slider, --axes), .control-grid,
+      .control-choice, .button, .button-row, .modal/.modal-content/.close, .sr-only,
+      :focus-visible handling, and responsive @media rules.
+  - kl-unl.js : MathJax equation helper. klunlShowEquation(eqn[,msg1[,msg2]]) updates
+      a LaTeX equation container (by id) and up to two screen-reader message elements;
+      klunlInitEqn() is called on load and is meant to be REDEFINED in your sim JS to
+      initialize equations/components. Use these for any displayed equations.
+
+THE ONE PERMITTED CONTENTS EDIT:
+  Edit only the per-sim copy of contents.json that you place in html5/foundation/.
+  Add a NEW entry keyed by this sim's sim-id, containing meta.title, meta.version, and
+  masthead.help / masthead.about with the title and HTML content derived from the
+  ORIGINAL sim's Help and About text. Keep entries in alphabetical order by key (per the
+  file's own _comment). Reuse the original boilerplate/funding/permission wording already
+  present in sibling entries. If a sim has no Help text, set help.content to "" so the
+  Help button is suppressed. Make this the only content change to any foundation file;
+  the .js and .css foundation files are copied in verbatim. (If the user instructs that
+  contents.json is a single SHARED file rather than a per-sim copy, then do not place a
+  copy in html5/foundation/ -- instead EMIT the exact JSON entry to add in
+  CONVERSION_NOTES.md and ask the user to paste it into the shared file. Confirm which
+  model applies if it is unclear -- see WHEN TO STOP AND ASK.)
+
+--------------------------------------------------------------------------------
+HARD RULES
+--------------------------------------------------------------------------------
+1. Behavior matches the original exactly (Goal A). Constants, tables, formulas, and
+   all educational/log/dialog text are VERBATIM from the AS source. Never round a
+   constant or paraphrase educational text.
+2. Presentation follows KL-UNL + WCAG (Goal B). Use the foundation CSS classes and
+   custom properties; do not hardcode the old Flash colors/fonts/coordinates.
+3. Use the <kl-unl-masthead> component for the title + Reset/Help/About. Do NOT build
+   your own masthead, your own About/Help dialog, or your own Reset button. Listen for
+   the "sim-reset" event and reset the sim's state to its exact initial state.
+4. Help/About text lives in the sim's contents.json entry (verbatim from the original,
+   reflowed into the existing boilerplate pattern) -- not hardcoded in the sim.
+5. Self-contained, no external dependencies: no build step, no bundler, no framework,
+   no CDN, no analytics, no Google Fonts. All files are local. The page IS served over
+   HTTP (local static server in dev, cloud host in production) -- it is NOT expected to
+   run from a double-clicked file:// path, because the masthead fetches foundation/
+   contents.json and browsers block fetch() over file://. The only runtime fetches are
+   local (foundation/contents.json) plus the foundation's own MathJax include if the demo
+   uses one; nothing leaves the host. Vanilla HTML/CSS/JS, <script type="module"> is fine.
+   index.html references the foundation files copied into html5/foundation/ (e.g.
+   foundation/kl-unl.css, foundation/kl-unl.js, foundation/kl-unl-masthead.js) and passes
+   json-url="foundation/contents.json". Ship an html5/README.md explaining how to serve
+   it and why file:// double-click fails.
+6. Single source of truth for state: one plain JS state object; a single render()
+   redraws everything from state after every action, so canvas, DOM, and the aria-live
+   region stay in sync.
+7. Do not modify any decompiled source file, and do not modify the CODE of any KL-UNL
+   foundation file (kl-unl-masthead.js, kl-unl.css, kl-unl.js) -- they are copied into
+   html5/foundation/ unchanged. The only permitted content change is adding this sim's
+   entry to the per-sim copy of contents.json.
+8. MathJax for ALL mathematics (MUST). Every mathematical equation, formula, variable,
+   or expression shown to the user is rendered with MathJax via the foundation's
+   kl-unl.js (klunlShowEquation / klunlInitEqn) using LaTeX -- never as a raster image,
+   plain-text ASCII math, or hand-built HTML/sub/sup. This applies to readouts and log
+   entries that contain real math notation too. Pair each equation with a screen-reader
+   message string (kl-unl.js supports this) so the math is also spoken.
+8a. EVERY math symbol goes through MathJax, not just full equations (MUST). Any single
+   mathematical symbol, variable, subscript/superscript, Greek letter, unit with math
+   notation, or inline expression that appears ANYWHERE in the UI -- labels, axis ticks,
+   buttons, readouts, the event log, tooltips, table cells -- must be typeset by MathJax
+   (e.g. inline \( ... \) / LaTeX), never as plain Unicode/HTML or canvas-painted text.
+   The verification test the user relies on: right-clicking ANY symbol or math content in
+   the rendered sim must open MathJax's own context menu (Show Math As -> TeX / MathML,
+   etc.). If right-click does not produce that menu on a piece of math, it was not
+   typeset by MathJax -- fix it. Do NOT disable or override the MathJax contextual menu,
+   and do not trap/preventDefault the contextmenu event on math elements. Math rendered
+   onto the <canvas> cannot expose this menu, so math must live in HTML (typeset by
+   MathJax) rather than be drawn on the canvas; move any canvas-baked symbols into HTML
+   overlays and note in ACCESSIBILITY.md any that genuinely cannot move.
+9. Never put sim styling inside the KL-UNL foundation files, and never inline overrides
+   that fork their look. If a control needs styling the foundation doesn't provide
+   (e.g. a custom slider), do NOT edit kl-unl.css or kl-unl.js and do NOT paste a big
+   <style> block into index.html to override them. Instead build a SEPARATE, additional
+   component in the sim's own styles/styles.css (and simulation.js) -- e.g. a custom
+   accessible slider -- layered on top of the foundation without modifying it. Keep
+   foundation files byte-for-byte unchanged (only the contents.json entry is added).
+10. Larger, zoomable text. Use comfortably large, readable type (body text noticeably
+   larger than browser default; treat ~1.125rem as a floor for body copy and scale
+   headings/labels up accordingly), sized in rem/em so it tracks the user's browser font
+   setting. The layout MUST remain usable and not clip or overlap when the page is zoomed
+   to 200% (WCAG 1.4.4 / 1.4.10 reflow): use relative units, allow wrapping, avoid fixed
+   px heights that crop text. Canvas-internal labels that must stay legible should prefer
+   being moved into surrounding HTML (which zooms) rather than baked into the scaled
+   canvas; note any that cannot in ACCESSIBILITY.md.
+11. Responsive incl. mobile portrait. Beyond the iPad floor, the page must also reflow
+   gracefully to narrow/portrait widths (phone portrait): single-column stacked layout,
+   panels full-width in reading order, no horizontal scrolling, controls and canvas
+   fitting the viewport. Use the KL-UNL responsive grid plus sim-specific breakpoints in
+   styles/styles.css (never by editing the foundation) so it transitions from the
+   desktop/iPad multi-column layout to a stacked portrait layout as width decreases.
+12. Visual polish & alignment (the sim must look clean and intentional at first glance).
+   No misaligned, ragged, or lopsided text/controls. Specifically:
+   - Align text and controls on shared edges and a consistent baseline: labels and their
+     values/inputs line up (e.g. a label column and a value column align vertically down
+     a panel); rows in a group share consistent left/right edges; numeric readouts align
+     (right-align or decimal-align numbers in tables/columns so digits line up).
+   - Even, consistent spacing: use a uniform spacing scale (consistent padding/margins/
+     gaps) so panels, fieldsets, and rows breathe equally; avoid one cramped row next to
+     a loose one. Text inside a box/panel has balanced internal padding on all sides and
+     is not jammed against an edge.
+   - Consistent small-box (text box / input / readout) dimensions: text boxes, number
+     inputs, and small readout fields that serve the same role share the SAME width and
+     height -- pick consistent sizes (driven by content/character width) and reuse them
+     so fields don't appear in a jumble of mismatched sizes. Align them on a shared grid
+     so their left and right edges line up down a column and their baselines align across
+     a row; equal-purpose fields are visually equal. Avoid arbitrary per-field widths.
+   - Symmetry & rhythm: panels and control groups feel balanced; related controls are
+     grouped and aligned to the same grid; headings, body text, and controls follow a
+     clear visual hierarchy. Prefer CSS grid/flex alignment over manual pixel nudging.
+   - Vertical centering where it reads better (e.g. a label and its control centered to
+     each other in a row), and no text overflowing, clipping, wrapping awkwardly, or
+     overlapping its container at any supported width or zoom level.
+   - Reuse the KL-UNL classes and spacing variables for consistency; put any additional
+     alignment styling only in styles/styles.css (never in the foundation files).
+   The bar: a first-time viewer should see a tidy, symmetric, professional layout with
+   nothing visually "off." Sloppy alignment is a defect to fix, not a cosmetic extra.
+13. Cross-OS & cross-browser compatibility (MUST). The sim must work and look correct on
+   Windows, macOS, Linux, iOS, and Android, and in all major browsers -- Chrome, Edge,
+   Firefox, and SAFARI (desktop and iOS) -- not just Chromium. Concretely:
+   - Use standards-based, broadly-supported HTML/CSS/JS; no Chrome-only APIs. Before
+     relying on a feature, confirm Safari/WebKit support; if a needed feature is not
+     universally supported, provide a fallback or an equivalent approach.
+   - Do not depend on vendor-prefixed CSS; include standard properties (and add prefixes
+     like -webkit- only as additive fallbacks, never as the sole declaration). Test
+     layout features that historically differ on WebKit (flex/grid gaps, aspect-ratio,
+     sticky, backdrop-filter, <dialog>, form-control styling) and ensure graceful
+     behavior on Safari.
+   - Pointer/touch input must work on iOS Safari (Pointer Events are supported; ensure
+     touch-action and drag behavior work there, and never rely on hover).
+   - Fonts: rely on the self-hosted/foundation fonts and safe fallbacks so text renders
+     consistently regardless of OS-installed fonts; do not assume a Windows-only or
+     Mac-only font is present.
+   - MathJax, the <canvas> rendering, the custom slider, and all controls must be
+     verified to render and operate identically across these browsers; note any
+     unavoidable per-browser difference in CONVERSION_NOTES.md.
+   - Keep everything local and standards-compliant so behavior does not vary by OS path
+     handling or browser file policies (it is served over HTTP, per rule 5).
+
+--------------------------------------------------------------------------------
+RENDERING ARCHITECTURE
+--------------------------------------------------------------------------------
+HYBRID, inside the KL-UNL shell:
+  - Use the KL-UNL structural classes for the page skeleton: an .app-shell wrapping
+    <kl-unl-masthead> + an .app-layout of .panel sections that mirror the original's
+    panel grouping and reading order (e.g. diagram panel, controls panel, event-log
+    panel). Use .control-fieldset / .control-row / .control-grid / .control-choice /
+    .button / .button-row for controls.
+
+  - REUSE EXPORTED ASSETS; DO NOT REDRAW THEM. The JPEXS export contains real exported
+    art -- bitmaps in images/ (photos, textures, logos -- e.g. a photo of a person) and
+    vector shapes in shapes/*.svg. These must be USED AS-IS, never recreated by hand.
+    Copy each asset the sim actually uses into html5/assets/ and reference that copy.
+    Decide per visual element using this PREFERENCE ORDER:
+      1. Exported BITMAP (images/*.png, or a bitmap-backed symbol) -> use the file
+         directly: draw with ctx.drawImage on the canvas at the same position/size, OR
+         place as a positioned <img> with appropriate alt text (prefer <img> when it is
+         a standalone informative/decorative picture like a photo; prefer drawImage when
+         it must composite/animate with canvas art). Never trace or redraw a bitmap.
+      2. Exported VECTOR SHAPE (shapes/*.svg) for static art -> reuse the SVG file as-is
+         (inline <svg>, <img>, or drawImage of the SVG). Do not re-vectorize it by hand.
+      3. ONLY genuinely CODE-DRAWN geometry -- art the ActionScript builds at runtime via
+         createEmptyMovieClip / drawArc / beginFill / lineTo / curveTo / attachMovie
+         (orbits, electron dots, photon trails, energy bars, masks) -> reproduce with
+         canvas 2D drawing, since there is no exported file for it.
+    When unsure whether an element is an exported asset or code-drawn, check the symbol
+    in symbolClass/symbols.csv and the matching shapes/sprites/images entry; if a file
+    exists for it, REUSE the file. Match original placement, size, and z-order. Copy the
+    fonts the sim uses into html5/assets/ too if they are sim-specific (shared fonts may
+    come from the foundation).
+
+  - Render the simulation "stage" (the code-drawn art and animation from preference #3
+    above: orbits, electrons, photons, proton, energy bars, markers, masks) on an HTML5
+    <canvas> placed inside a .panel__canvas-wrap, compositing the reused bitmaps/SVGs
+    (#1/#2) at their original positions. Recreate only the code-drawn AS calls on the 2D
+    context, preserving geometry and motion (see AS1 idiom notes). The canvas is the
+    visual layer; it is NOT the accessibility layer.
+  - Native, semantic controls for everything interactive: <button>, <input
+    type="range">, <input>/<select>/<output>, <label>, <fieldset>/<legend>. Never a
+    <div onclick>. These provide keyboard + screen-reader access that a canvas cannot.
+  - For any draggable canvas object (e.g. dragging the electron between levels),
+    provide BOTH the pointer drag (matching the original offset + nearest-level
+    snapping math) AND an equivalent keyboard/native control (e.g. arrow-key handling
+    with role="slider" semantics, or a labeled select/stepper) so the action is fully
+    keyboard-operable. Both paths mutate the same state.
+  - Displayed equations go through kl-unl.js (klunlShowEquation) with LaTeX + screen-
+    reader message strings; redefine klunlInitEqn() in your sim JS to set them up.
+
+--------------------------------------------------------------------------------
+AS1 IDIOM TRANSLATION (this collection's actual patterns)
+--------------------------------------------------------------------------------
+- Object.registerClass("Symbol Name", Foo) + Foo.prototype = new MovieClip()
+    -> a plain JS class/constructor Foo with the same methods; the symbol becomes a
+       logical object you draw/position on the canvas.
+- Constructor/drawing code (createEmptyMovieClip, lineStyle, beginFill, moveTo,
+  lineTo, curveTo, drawArc, endFill) -> canvas 2D drawing with the SAME coordinates,
+  radii, and color/alpha values. AS color ints are decimal RGB (16777215=#FFFFFF,
+  65280=#00FF00); fill/line alpha is 0-100 -> divide by 100. (You may re-map colors to
+  the KL-UNL palette where required for contrast/colorblind safety -- but record every
+  such change in ACCESSIBILITY.md and never use color as the only signal.)
+- Custom MovieClip.prototype.drawArc (tessellates with curveTo): ctx.arc reproduces it;
+  match center, radius, start/end angle. AS uses screen-Y-down with sin negated
+  (y - r*sin); mirror that so orbital motion direction matches.
+- onEnterFrame -> a single requestAnimationFrame loop. getTimer() -> performance.now()
+  (ms). Keep the SAME timing constants (e.g. 2500 ms) and use elapsed wall-clock time,
+  not frame counts, so timing matches across machines. updateAfterEvent() -> no-op.
+- Drag (onPress sets onMouseMove; onRelease/onReleaseOutside clears it; uses _xmouse,
+  xOffset, snapping to nearest of levelPositions[], plus a "ghost" electron alpha)
+  -> pointer events with identical offset + nearest-snapping math AND a keyboard path.
+- _x/_y/_alpha/_visible/_rotation/_xscale -> object props applied at draw time;
+  _rotation is DEGREES (convert for Math trig).
+- attachMovie("Linkage", name, depth, initObj) -> instantiate the matching JS object,
+  apply initObj, insert into a depth-ordered draw list.
+- setMask / mask clips -> ctx.save + clip() with the same region.
+- Number.prototype.toFixed polyfill / scientific notation -> reproduce the EXACT
+  on-screen/log formatting (digits, "x 10^n", sign).
+- FUIComponent / FPushButton / FScrollBar -> do NOT port the Flash component framework;
+  reproduce only the observable behavior using native accessible controls.
+- _root/_parent chains -> explicit references between your JS objects. trace() -> drop.
+
+--------------------------------------------------------------------------------
+ACCESSIBILITY REQUIREMENTS (WCAG 2.1 AA baseline; AAA where reasonable)
+--------------------------------------------------------------------------------
+Semantics & structure
+  - One <h1> = the simulation name (the masthead component renders the title; do not
+    add a competing h1). Correct, non-skipping heading hierarchy for panels.
+  - Semantic landmarks: <main>, <section>, <header>/<nav> (from masthead), <aside> for
+    the event log if appropriate. Use the KL-UNL classes on these elements.
+Text alternatives (1.1.1)
+  - Decorative canvas/SVG/img: aria-hidden / alt="". Informative canvas: provide a text
+    equivalent reachable by screen readers -- a concise live/description region that
+    states what the diagram currently shows (e.g. electron level, last transition).
+  - Equations: use kl-unl.js message args to give a spoken description alongside LaTeX.
+Color & contrast (1.4.1/1.4.3/1.4.11)
+  - >=4.5:1 text, >=3:1 large/graphical. Use the KL-UNL palette variables. NEVER encode
+    state by color alone -- add a label, shape, or text (e.g. "656 nm - H-alpha (red)").
+    Keep physically meaningful spectra but supplement with numeric/textual labels.
+Keyboard (2.1.1/2.1.2/2.4.7)
+  - Everything operable by keyboard in a logical tab order; visible :focus-visible ring
+    (provided by kl-unl.css). No keyboard traps. The masthead dialog already traps/
+    restores focus -- don't fight it.
+  - SLIDERS MUST BE FULLY KEYBOARD-OPERABLE (current sims get "stuck" here -- fix it).
+    Every slider is focusable and adjustable by keyboard: Left/Down decrement, Right/Up
+    increment, PageUp/PageDown for larger steps, Home/End for min/max. Prefer a native
+    <input type="range"> (it gives all of this for free) with a real <label>, a sensible
+    step, and aria-valuetext where a formatted/unit value should be announced (the
+    aria-valuetext MUST include the quantity name and unit, e.g. "Declination minus 5
+    degrees", not a bare number -- see Screen-reader narration). If a
+    CUSTOM slider is required for styling, build it as a separate component (per hard
+    rule 9, in styles/styles.css + simulation.js, never by editing foundation files):
+    give it tabindex="0", role="slider", aria-valuemin/max/now (and aria-valuetext), and
+    handle the same arrow/Page/Home/End keys. Ensure the focused control is not blocked
+    by canvas pointer handlers, doesn't lose focus mid-drag, and that focus never gets
+    trapped on it (Tab must move away normally). Changing a slider updates the same state
+    object as the pointer path, so keyboard and mouse stay in sync.
+Timing / motion (2.2.2/2.3.3)
+  - No motion >5 s without a stop; nothing flashes >3x/sec. Honor prefers-reduced-
+    motion: replace continuous animation with the equivalent instantaneous end state.
+  - Provide Pause if the sim has long-running motion. (Reset is provided by the
+    masthead via the sim-reset event -- wire it; do not add a second Reset button.)
+Screen-reader narration (VoiceOver on macOS + NVDA on Windows MUST both work)
+  - A user relying ONLY on audio (no screen) must be able to follow what the simulation
+    is doing: its current state, what changed after each action, and the key readouts.
+    Test mentally against BOTH NVDA (Windows/Chrome+Firefox) and VoiceOver (macOS/Chrome
+    + Safari); wording and behavior must work for both, not just one.
+  - ALWAYS SPEAK UNITS WITH NUMBERS (explicit supervisor requirement). Any value that has
+    a unit must be announced WITH its unit and what the quantity is -- never a bare
+    number. Screen readers read only the accessible name/value, so if the unit lives in a
+    separate visual label or is only implied, it is dropped. Real failure observed: right
+    ascension and declination were read as bare numbers with no units.
+      * For inputs/sliders/readouts, put the full spoken value (quantity + number + unit)
+        in the element's accessible value via aria-valuetext (range/slider) or in an
+        aria-label / associated <label>, e.g. aria-valuetext="Right ascension 5 hours 32
+        minutes" or "Declination minus 5 degrees 27 arcminutes", "Luminosity 4.5 solar
+        luminosities", "Wavelength 656 nanometers". Do not rely on a visually-adjacent
+        unit label to be read.
+      * Spell units as full words for speech, not just symbols, where the symbol would be
+        mis-read or skipped (e.g. "degrees" not just the degree glyph; "arcminutes",
+        "hours", "electron volts", "nanometers", "solar masses"). You may show the symbol
+        visually while giving the spoken form in aria-valuetext / a .sr-only companion.
+      * For coordinate pairs (RA/Dec, alt/az, x/y), announce each component labelled with
+        its name AND unit so the pair is unambiguous in audio.
+  - Live region: include an aria-live="polite" status region (a .sr-only element is fine)
+    that announces meaningful state changes WITH units and context, e.g. "Electron now on
+    level 3. Photon energy 12.09 electron volts: Lyman-beta absorbed." or "Cursor moved to
+    temperature 5800 kelvin, luminosity 1.0 solar luminosities." Announce slider/drag
+    results on release/commit, not on every tick (avoid flooding). Use aria-live="assertive"
+    only for rare, important alerts. Keep wording consistent with the on-screen text.
+  - Describe the diagram, not just controls: provide a concise, continuously-updated text
+    description of what the canvas currently shows (reachable via the live region and/or a
+    visually-hidden description tied to the canvas), so an audio-only user gets the same
+    "what's happening" a sighted user sees. Update it from the single render()/state.
+  - Equations: use kl-unl.js message args to give a spoken description alongside LaTeX
+    (MathJax also exposes the math to the screen reader; keep the spoken description
+    units-complete too).
+  - Verify announcements are not duplicated, truncated, or read out of order, and that
+    moving focus through controls reads a clear name + value + unit for each.
+Forms & language
+  - Every input has a real <label> (or fieldset/legend). <html lang="en">.
+
+--------------------------------------------------------------------------------
+RESPONSIVENESS (desktop -> iPad -> phone portrait)
+--------------------------------------------------------------------------------
+The result must be usable and well-laid-out across the range from desktop down to
+phone PORTRAIT width. iPad (~768-1024px) is the primary tablet target; the layout must
+ALSO reflow gracefully to narrow phone-portrait widths (single column, no horizontal
+scroll). It must remain usable at 200% browser zoom (treat zoom-induced narrow widths
+the same as small viewports -- reflow, don't clip).
+
+Shell / layout
+  - Lean on the KL-UNL responsive system already in kl-unl.css: rem-based sizing,
+    .app-shell max-width, the .app-layout grid, and its @media (max-width: 56rem) rule
+    that collapses two columns to one. Build the panel structure with those classes so
+    the collapse happens for free; do not hardcode pixel widths that fight it.
+  - Sim-specific styles in styles/styles.css use relative units (rem/%/fr, min()/max()/
+    clamp()) and avoid fixed px widths on containers. Add sim-specific breakpoints in
+    styles/styles.css as needed (NEVER by editing the foundation) to carry the layout
+    below the foundation's 56rem breakpoint down to phone portrait; keep the foundation's
+    own 56rem behavior intact.
+
+Phone portrait
+  - At narrow/portrait widths, stack everything into ONE column in logical reading order
+    (e.g. title, diagram/canvas panel, controls, event log), each panel full-width.
+  - No horizontal scrolling; nothing clipped or overlapping. Controls wrap instead of
+    overflowing; the canvas panel shrinks to fit the viewport width (the SCALE approach
+    below handles the canvas itself).
+  - Keep tap targets >=44px and spacing comfortable for touch in the stacked layout.
+
+Canvas stage (SCALE, do not reflow)
+  - Keep the simulation's ORIGINAL internal coordinate system. All ported drawing/
+    physics math stays in original Flash stage coordinates -- do NOT recompute positions
+    or radii from the live element size (that risks parity drift). Set the canvas backing
+    resolution to the original stage size (optionally multiplied by window.devicePixel-
+    Ratio for crispness, with a matching ctx.scale), and let CSS scale the canvas element
+    to fit its panel while preserving aspect ratio (e.g. max-width:100%; height:auto, or
+    an aspect-ratio box). The drawing code never needs to know the on-screen size.
+  - Map pointer/touch coordinates back through the current scale factor so hit-testing
+    and the electron-drag offset/snapping math operate in original stage coordinates and
+    keep matching the AS source exactly at any display size.
+
+Touch (tablets and phones have no hover and use touch)
+  - Use Pointer Events (pointerdown/move/up) so mouse and touch share one path. On any
+    draggable canvas element set CSS touch-action:none so dragging doesn't scroll/zoom
+    the page; restore normal scrolling elsewhere.
+  - Ensure interactive targets meet the >=44px (2.75rem) min size the KL-UNL .button and
+    control styles already provide; don't shrink them below that on smaller widths.
+  - Do not rely on :hover to reveal controls or information (no hover-only affordances).
+
+--------------------------------------------------------------------------------
+PROCESS (in order)
+--------------------------------------------------------------------------------
+PHASE 1 -- CATALOG (source = ground truth for behavior)
+  - List the folder. Read symbolClass/symbols.csv (linkage name <-> symbol id).
+  - Read EVERY .as under scripts/ (top-level + per-sprite/frame). Identify the main
+    controller (often "The Simulator" or the main frame script) and how it wires sub-
+    objects. Note all constants, tables, formulas, randomized logic, drag logic, timing.
+  - Open the provided SCREENSHOT of the original sim (frames/1.png, or another supplied
+    image of the running Flash version) and study it as the layout reference: panel
+    arrangement, grouping, relative positioning, and reading order. Plan the KL-UNL panel
+    structure to replicate this look as closely as the shell allows (Goal C), keeping the
+    higher priorities (A behavior, B accessibility + template usage) intact. Also open
+    relevant
+    shapes/*.svg and images/*.png for geometry/colors of code-drawn art.
+  - Collect verbatim Help/About text and all on-screen/log strings from texts/*.txt and
+    AS string literals.
+  - Inspect the foundation/ folder inside the linked sim folder (and the demo, e.g.
+    demo_01.html, if present) to learn the exact reference protocol: the script/style
+    includes, the <kl-unl-masthead> tag with its sim-id / json-url attributes, and the
+    expected DOM scaffold and class usage. You will copy this foundation/ folder into
+    html5/foundation/ unchanged.
+  - Write a one-paragraph behavior model at the top of CONVERSION_NOTES.md. If you can't
+    describe the sim plainly, re-read the source before coding.
+
+PHASE 2 -- FOUNDATION COPY + CONTENTS ENTRY + SHELL
+  - Copy the linked folder's foundation/ subfolder UNCHANGED into html5/foundation/
+    (kl-unl-masthead.js, kl-unl.css, kl-unl.js, contents.json, and any MathJax include
+    the demo uses). Do not alter their code.
+  - Add this sim's entry to the html5/foundation/contents.json copy (alphabetical) with
+    meta + verbatim-derived help/about. (If contents.json is a single shared file per the
+    user's instruction, instead emit the entry in CONVERSION_NOTES.md to paste.)
+  - Build the page skeleton with the KL-UNL classes: .app-shell > <kl-unl-masthead
+    sim-id="..." json-url="foundation/contents.json"> + .app-layout of .panel sections
+    mirroring the original panels and reading order. Link the foundation CSS/JS from
+    index.html as foundation/kl-unl.css and foundation/kl-unl.js (and the MathJax include
+    if present), matching the demo's reference protocol.
+
+PHASE 3 -- STATE, RENDER, BEHAVIOR
+  - One state object; one render() that redraws canvas + syncs DOM + updates the live
+    region. Recreate code-drawn art on canvas with matching geometry/motion.
+  - Port each prototype method faithfully. Preserve randomized decay/recombination
+    tables and the Math.random selection loop exactly; preserve queueing/in-progress
+    guards, waitTime timing, and the full photon/excitation/ionization/recombination
+    branching. Implement drag with identical offset + snapping AND a keyboard path.
+  - Wire the masthead "sim-reset" listener to restore the exact initial state. Add Pause
+    + reduced-motion handling. Set up equations via klunlInitEqn()/klunlShowEquation().
+
+PHASE 4 -- SELF-VERIFY (no emulator)
+  Check output against the AS source, frames/1.png, the foundation files, and the rules:
+    Functional parity
+    [ ] Every interactive control present; same effect as the AS.
+    [ ] Constants/tables/formulas verbatim; number formatting matches.
+    [ ] Drag offset/snapping/ghost behavior matches; keyboard path gives same result.
+    [ ] Animation timing uses same ms constants and elapsed-time logic.
+    [ ] All on-screen/log text verbatim; Help/About text matches original (now in JSON).
+    [ ] Exported assets REUSED as-is (bitmaps/photos via file, shapes via SVG), copied to
+        html5/assets/, at original position/size/z-order; only code-drawn geometry redrawn.
+    [ ] Reset (via sim-reset) returns to the exact initial state.
+    [ ] Layout reflects the original sim's SCREENSHOT as closely as the KL-UNL shell
+        allows (panel arrangement, grouping, reading order), without overriding behavior,
+        accessibility, or template usage; any forced divergence noted in CONVERSION_NOTES.
+    KL-UNL + accessibility
+    [ ] Uses <kl-unl-masthead>; no self-built masthead/About/Help/Reset.
+    [ ] Foundation files copied into html5/foundation/ with code unchanged; only an
+        additive entry in the local contents.json copy.
+    [ ] index.html links foundation/kl-unl.css + foundation/kl-unl.js and passes
+        json-url="foundation/contents.json"; masthead loads with no path errors.
+    [ ] Panel structure + reading order mirror the original, via KL-UNL classes.
+    [ ] One <h1>; correct headings; semantic landmarks; every input labeled; lang set.
+    [ ] All math rendered via MathJax/kl-unl.js (LaTeX) -- no math as images or ASCII;
+        each equation paired with a spoken screen-reader description.
+    [ ] EVERY symbol/variable/expression anywhere in the UI is MathJax-typeset (not just
+        full equations); right-clicking any math opens the MathJax menu (Show Math As ->
+        TeX/MathML); the MathJax context menu is not disabled or overridden.
+    [ ] Body text large (>=~1.125rem) and in rem/em; layout reflows without clipping at
+        200% zoom (no fixed-px heights cropping text).
+    [ ] >=4.5:1 contrast; no color-only signaling; palette via CSS variables.
+    [ ] Full keyboard operability, visible focus, no traps. EVERY slider works by
+        keyboard (arrows + Page/Home/End), doesn't get stuck, and Tab moves away cleanly.
+    [ ] Any custom-styled control (e.g. slider) is a SEPARATE component in styles/
+        styles.css + simulation.js; foundation files untouched; no big override <style>
+        block forking the foundation look in index.html.
+    [ ] aria-live announces state changes (on commit, not per tick), WITH units, and an
+        audio-only user can follow the sim on BOTH NVDA and VoiceOver.
+    [ ] Every numeric value with a unit is announced with its quantity name AND unit
+        (via aria-valuetext / aria-label / .sr-only) -- never a bare number (RA/Dec etc.).
+    [ ] Pause present if needed; prefers-reduced-motion honored; no >3/sec flashing.
+    Responsiveness (desktop -> iPad -> phone portrait)
+    [ ] Layout works desktop -> iPad and reflows to a single-column phone-PORTRAIT layout
+        (panels stacked in reading order, no horizontal scroll); KL-UNL 56rem collapse
+        intact; sim breakpoints in styles/styles.css only; no fixed-px widths fighting it.
+    [ ] Canvas keeps original internal coordinates and scales via CSS with preserved
+        aspect ratio; drawing/physics math unchanged.
+    [ ] Pointer + touch share one path; touch-action:none on draggables; pointer coords
+        mapped through scale so drag/snapping still match the AS at any size.
+    [ ] Targets >=44px; no hover-only controls.
+    [ ] Visual polish: text/controls aligned on shared edges and baselines (label/value
+        columns line up, numbers decimal/right-aligned), consistent spacing, balanced box
+        padding, clear symmetry/hierarchy; equal-purpose text boxes/inputs/readouts share
+        consistent width/height and aligned edges; nothing misaligned, clipped, or
+        overlapping at any supported width or zoom.
+    Hygiene
+    [ ] No console errors when SERVED OVER HTTP; loads via a local static server (and on
+        the cloud host); no network requests beyond foundation/contents.json and the
+        foundation's MathJax include (if present).
+    [ ] html5/README.md present and explains the HTTP-server requirement and why file://
+        double-click fails (masthead fetches contents.json).
+    [ ] Cross-OS/browser: works and looks correct on Windows/macOS/Linux/iOS/Android in
+        Chrome, Edge, Firefox, and Safari (desktop + iOS); no Chrome-only APIs or
+        prefix-only CSS; touch/drag works on iOS Safari; font fallbacks OS-independent.
+  Fix every failing item before declaring done. Re-check parity after any accessibility
+  change (a11y refactors can shift focus/rendering).
+
+--------------------------------------------------------------------------------
+OUTPUT
+--------------------------------------------------------------------------------
+Create a subfolder named "html5/" INSIDE the simulation folder and write ALL sim output
+there. Do NOT write into the simulation folder root, the decompiled source folders
+(scripts/, shapes/, sprites/, ...), or the KL-UNL foundation folder. If html5/ already
+exists, overwrite its contents. Result:
+
+  <simulation folder>/
+    html5/
+      index.html          KL-UNL scaffold: .app-shell + <kl-unl-masthead
+                          sim-id="..." json-url="foundation/contents.json"> + panels;
+                          links foundation/kl-unl.css and foundation/kl-unl.js
+      foundation/         copied UNCHANGED from the linked folder's foundation/:
+                            kl-unl-masthead.js, kl-unl.css, kl-unl.js,
+                            contents.json (with THIS sim's entry added), + MathJax
+                            include if the demo uses one
+      styles/styles.css   ONLY sim-specific styles; rely on kl-unl.css for shared style
+      simulation.js       all sim logic (one file; split only if genuinely large)
+      assets/             the exported assets the sim REUSES as-is: images/ bitmaps
+                          (photos/logos/textures), shapes/ SVGs used directly, any data
+                          tables, and sim-specific fonts. Copied from the decompiled
+                          export; not redrawn.
+      README.md           how to run it: must be served over HTTP (e.g. a local static
+                          server); why double-clicking index.html (file://) does NOT work
+      CONVERSION_NOTES.md behavior model; AS->HTML5 mapping; the contents.json entry
+                          added (or to be pasted); which assets were reused vs code-drawn;
+                          any deviations from original behavior
+      ACCESSIBILITY.md    WCAG affordances added: alt/desc text, ARIA, keyboard map,
+                          color remaps + rationale, live-region wording, reduced-motion,
+                          and a note that human screen-reader QA is still required
+
+The html5/ folder is fully self-contained: index.html sits one level above
+html5/foundation/, so the foundation files' own ../foundation/ internal references and
+the masthead component's defaults resolve correctly without any path edits inside those
+files.
+
+RUNNING IT REQUIRES AN HTTP SERVER -- it will NOT work by double-clicking index.html.
+The masthead component (kl-unl-masthead.js, which you must not modify) loads its title/
+Help/About text via fetch('foundation/contents.json'). Browsers block fetch() of local
+files under the file:// protocol (CORS / same-origin), so opening index.html directly
+shows an empty or broken masthead. Served over HTTP (a local static server during dev,
+or the cloud host in production) the fetch succeeds and the sim loads normally. The
+required README.md must explain exactly this -- see the README spec below.
+
+THE html5/README.md MUST CONTAIN:
+  - A one-line statement that the sim must be served over HTTP and will not run from a
+    double-clicked file:// path.
+  - WHY: the KL-UNL masthead fetches foundation/contents.json, and browsers block fetch()
+    over file:// for security (same-origin policy), so the title/Help/About won't load.
+  - HOW TO RUN locally, with copy-paste commands the user can run from inside the html5/
+    folder, e.g.:
+      Python:  python3 -m http.server 8123   then open http://localhost:8123/
+      Node:    npx serve        (or npx http-server)
+      VS Code: the "Live Server" extension
+    (Note the sim is at the server root when you serve from inside html5/, so the URL is
+    http://localhost:8123/ -- not .../html5/index.html.)
+  - A one-line production note: when deployed to the cloud host (served over HTTP/HTTPS)
+    it just works; the file:// limitation only affects local double-clicking.
+Keep simulation.js readable; comment the physics with its formula (e.g. // E_n = -13.6
+/ n^2 eV). Favor obvious code over clever code.
+
+--------------------------------------------------------------------------------
+WHEN TO STOP AND ASK (do not guess)
+--------------------------------------------------------------------------------
+  - decompiled AS for a behavior is missing, truncated, or contradictory;
+  - a constant/formula a readout depends on cannot be found in the AS;
+  - a needed asset (shape/font/image) failed to export;
+  - on-screen or Help/About text appears placeholder/truncated in the source;
+  - the linked sim folder has no foundation/ subfolder, or it is missing one of
+    kl-unl-masthead.js / kl-unl.css / kl-unl.js / contents.json (do not invent or
+    fetch them);
+  - contents.json's actual schema/keys differ from what's described here, or it is meant
+    to be one SHARED file rather than a per-sim copy (in that case emit the exact entry
+    to paste and ask which model applies);
+  - the demo's reference protocol (include paths, tag attributes, DOM scaffold) differs
+    from what's described here.
+Educational correctness is non-negotiable: a wrong number or altered teaching text is
+worse than a question.
+
+================================================================================
+END OF PROMPT
+================================================================================
