@@ -1,0 +1,154 @@
+================================================================================
+SCREEN-READER / AUDIO-DESCRIPTION RETROFIT PROMPT
+For Claude Code. Apply to an ALREADY-CONVERTED KL-UNL HTML5 sim to make it fully
+usable by audio alone (NVDA on Windows, VoiceOver on macOS). Add/repair narration
+ONLY -- do not change the simulation's behavior, layout, visuals, or physics.
+================================================================================
+
+GOAL
+Make this simulation understandable and operable using audio output alone. A user
+who cannot see the screen, listening through a screen reader, must be able to:
+  - know what the simulation currently shows,
+  - hear what changed after every action they take,
+  - hear every meaningful numeric value WITH its quantity name AND its unit,
+  - operate every control by keyboard and hear its name, value, and unit.
+This must work on BOTH NVDA (Windows; Chrome and Firefox) AND VoiceOver (macOS;
+Chrome and Safari). If it only works in one, it is not done.
+
+SCOPE / GUARDRAILS (read first)
+  - This is an ACCESSIBILITY-ONLY pass. Do NOT alter simulation behavior, numbers,
+    physics, animation, layout, visual design, or on-screen text. Do not refactor for
+    style. Only add or fix screen-reader semantics, labels, units, ARIA, live regions,
+    and the keyboard wiring needed for narration.
+  - Do NOT modify the KL-UNL foundation files (kl-unl-masthead.js, kl-unl.css,
+    kl-unl.js, contents.json content beyond what already exists). Any new styling goes
+    in the sim's own styles/styles.css; any new logic in the sim's own JS.
+  - Keep all existing functionality, MathJax usage, responsiveness, and cross-browser
+    behavior intact. Re-verify they still work after your changes.
+  - Visually-hidden text uses the project's existing .sr-only class.
+
+================================================================================
+THE CORE REQUIREMENT: ALWAYS SPEAK UNITS WITH NUMBERS
+================================================================================
+Screen readers announce only an element's accessible NAME and VALUE. A unit shown in
+a separate visual label, implied by context, or painted on the canvas is NOT spoken --
+so values get read as bare numbers. (Observed failure: right ascension and declination
+were read as plain numbers with no units.)
+
+Fix every value that has a unit so the screen reader speaks: QUANTITY NAME + NUMBER +
+UNIT.
+
+How to attach the spoken value (choose per element):
+  - Sliders / range / role="slider": set aria-valuetext to the full spoken string and
+    update it whenever the value changes. aria-valuenow stays the raw number; the SPOKEN
+    text comes from aria-valuetext.
+      e.g. aria-valuetext = "Right ascension 5 hours 32 minutes"
+           aria-valuetext = "Declination minus 5 degrees 27 arcminutes"
+           aria-valuetext = "Wavelength 656 nanometers"
+  - Static readouts / outputs: give the element (or a .sr-only companion) an accessible
+    name that includes quantity + unit, OR keep the visible number and add a .sr-only
+    span with the full spoken phrase. Keep the visible text as-is.
+  - Inputs (number/text): the <label> states the quantity and unit (e.g. "Temperature
+    (kelvin)"), so focus reads them together; if the unit is only a trailing glyph, add
+    it to the accessible name.
+  - Coordinate pairs (RA/Dec, alt/az, x/y, lat/long): announce EACH component with its
+    own name and unit so the pair is unambiguous by ear.
+
+Speak units as WORDS, not bare symbols, wherever a symbol is skipped or mis-read by
+screen readers. Show the symbol visually if you like, but the spoken form (in
+aria-valuetext / aria-label / .sr-only) must use words:
+  deg / degree glyph        -> "degrees"
+  arcmin ' , arcsec "       -> "arcminutes", "arcseconds"
+  h m s (time)              -> "hours", "minutes", "seconds"
+  eV                        -> "electron volts"
+  nm, Angstrom              -> "nanometers", "angstroms"
+  K                         -> "kelvin"
+  L_sun, M_sun, R_sun       -> "solar luminosities", "solar masses", "solar radii"
+  AU, ly, pc                -> "astronomical units", "light years", "parsecs"
+  %                         -> "percent"
+  negative values           -> say "minus" / "negative" explicitly (a leading "-" glyph
+                              is often dropped)
+(Use the units the sim actually displays; match its wording and precision exactly.)
+
+================================================================================
+NARRATION: LET AUDIO USERS FOLLOW THE SIMULATION
+================================================================================
+1. STATUS LIVE REGION
+   - Ensure there is an aria-live="polite" status region (a .sr-only element is fine).
+     After every meaningful change, set its text to a short sentence describing the new
+     state, WITH units and context. Examples:
+       "Electron now on level 3. Photon energy 12.09 electron volts: Lyman-beta absorbed."
+       "Cursor moved to temperature 5800 kelvin, luminosity 1.0 solar luminosities."
+   - Announce results of a slider/drag on RELEASE/COMMIT, not on every intermediate tick,
+     so the user isn't flooded. Debounce continuous changes.
+   - Use aria-live="assertive" only for rare important alerts; default to polite.
+   - Drive the live region from the sim's single state/render path so it never drifts
+     from what's shown. Do not announce the same change twice.
+
+2. DIAGRAM DESCRIPTION (the canvas is invisible to screen readers)
+   - Provide a concise, continuously-updated textual description of what the canvas
+     currently depicts, reachable by the screen reader (via the live region and/or a
+     visually-hidden description associated with the canvas, e.g. aria-label or an
+     adjacent .sr-only block referenced by aria-describedby). Update it from state.
+   - Mark purely decorative canvas/img as aria-hidden="true" / alt="" so they add no
+     noise; informative graphics get the text equivalent above.
+
+3. CONTROLS
+   - Every control is reachable by keyboard in a logical order and announces a clear
+     NAME + VALUE + UNIT when focused. Buttons have descriptive accessible names (not
+     "button" or an icon alone). Group related controls with <fieldset>/<legend> or an
+     accessible group label so context is spoken.
+   - Sliders fully keyboard-operable (arrows + PageUp/Down + Home/End) and not "stuck";
+     each change updates aria-valuetext (with unit) and, on commit, the live region.
+
+4. EQUATIONS / SYMBOLS
+   - Math is MathJax-typeset (it exposes the expression to screen readers). Where the sim
+     gives a spoken description of an equation, make that description units-complete too.
+
+================================================================================
+PROCESS
+================================================================================
+1. Inventory every place a number/quantity is shown (sliders, inputs, readouts, the log,
+   axis labels, tooltips, table cells, canvas-painted values) and note its unit.
+2. For each, attach the spoken quantity+number+unit via aria-valuetext / aria-label /
+   .sr-only, keeping the visible display unchanged. Replace skipped/mis-read unit symbols
+   with spoken words.
+3. Add/repair the aria-live status region and wire it to state changes (commit-time,
+   debounced, units included).
+4. Add/repair the canvas text description and update it from render()/state.
+5. Ensure keyboard reachability + focus order so every control reads name+value+unit.
+6. Self-verify (below). Fix every miss.
+
+================================================================================
+SELF-VERIFY (no real screen reader available in this environment, so reason carefully
+about the accessibility tree; the user will confirm on NVDA + VoiceOver)
+================================================================================
+  [ ] Every numeric value with a unit exposes quantity name + number + unit to the
+      accessibility tree (checked via aria-valuetext / aria-label / .sr-only) -- no bare
+      numbers anywhere, including RA/Dec and other coordinate pairs.
+  [ ] Negative values speak "minus"/"negative"; unit symbols that get skipped are given
+      as words.
+  [ ] aria-live status region exists and updates on every meaningful change, on commit,
+      with units and context; no double-announcements; no per-tick flooding.
+  [ ] Canvas has a screen-reader-reachable description of its current state, updated from
+      state; decorative graphics are aria-hidden.
+  [ ] Every control keyboard-reachable, in logical order, announcing name + value + unit;
+      sliders operable by arrows/Page/Home/End and not stuck.
+  [ ] Works for BOTH NVDA and VoiceOver semantics (standard ARIA only; no reader-specific
+      hacks that break the other).
+  [ ] No behavior/layout/visual/physics/text changes; MathJax, responsiveness, and
+      cross-browser behavior still intact.
+  [ ] Foundation files unmodified; new styles only in styles/styles.css, new logic in the
+      sim's own JS.
+
+================================================================================
+WHAT TO REPORT
+================================================================================
+Append an "AUDIO / SCREEN-READER PASS" section to the sim's ACCESSIBILITY.md listing:
+the values you made units-complete (with the spoken strings used), the live-region
+wording, the canvas description approach, any unit-word mappings applied, and a note that
+final confirmation requires a human listening test on NVDA (Windows) and VoiceOver (mac).
+Do not claim screen-reader compatibility as verified -- it must be confirmed by a human.
+================================================================================
+END OF PROMPT
+================================================================================
