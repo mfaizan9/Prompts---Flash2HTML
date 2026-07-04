@@ -1,0 +1,99 @@
+================================================================================
+DRAGGABLE-ELEMENT KEYBOARD FOCUS RETROFIT PROMPT
+For Claude Code. Apply to an ALREADY-CONVERTED KL-UNL HTML5 sim to make every
+mouse-draggable / rotatable element keyboard-operable via focus + arrow keys.
+Add/repair this interaction ONLY -- do not change simulation behavior, layout,
+visuals, physics, or the existing mouse drag.
+================================================================================
+
+GOAL
+For EVERY element in the sim that can currently be moved or rotated with the mouse
+(dragged handles, markers, the electron, a cursor, a rotatable dial/arrow, a
+draggable star, etc.), add these two behaviors, both leading to arrow-key control:
+
+  1. TAB TO FOCUS: pressing Tab reaches the draggable element and focuses it (with a
+     visible focus indicator). Once focused, the ARROW KEYS move or rotate it.
+  2. CLICK TO FOCUS: clicking or tapping the element focuses that same element, so the
+     ARROW KEYS then move or rotate it without having to Tab first.
+
+Keep the existing mouse drag working exactly as-is. The keyboard path is ADDITIVE and
+must produce the same result and update the same underlying state.
+
+SCOPE / GUARDRAILS (read first)
+  - Interaction-only pass. Do NOT change physics, numbers, animation, snapping rules,
+    layout, visual design, or on-screen text. Do not alter the mouse-drag math.
+  - Do NOT modify the KL-UNL foundation files (kl-unl-masthead.js, kl-unl.css,
+    kl-unl.js). New styling -> sim's styles/styles.css; new logic -> sim's own JS.
+  - Both mouse and keyboard paths must mutate the SAME state object / go through the
+    same render(), so they never diverge.
+  - Preserve MathJax, responsiveness, cross-browser behavior, and existing screen-reader
+    narration; re-verify they still work.
+
+================================================================================
+HOW TO IMPLEMENT
+================================================================================
+1. MAKE EACH DRAGGABLE FOCUSABLE
+   - The canvas itself can't focus individual shapes, so give each draggable object a
+     real focusable element: either a native control, or a proxy element (e.g. a
+     positioned element or an SVG/DOM overlay) with tabindex="0". Put them in a logical
+     tab order matching reading order.
+   - Give it an appropriate role and accessible name that includes its current
+     position/angle, e.g. role="slider" (for a constrained 1-D move) or a labelled
+     role="application"/group for free 2-D move/rotate, with aria-label like
+     "Electron, level 3" or "Pointer, right ascension 5 hours 32 minutes".
+   - Ensure a VISIBLE focus indicator when focused (use the project's existing
+     :focus-visible styling; add sim-specific focus styling only in styles/styles.css).
+
+2. TAB TO FOCUS
+   - Confirm Tab reaches each draggable in order and Shift+Tab goes back. Tab must also
+     move AWAY normally afterward -- no focus trap.
+
+3. CLICK TO FOCUS
+   - On pointerdown/click on the object (hit-test as the existing drag already does),
+     call .focus() on that object's focusable element. So a mouse user who clicks it can
+     immediately use arrow keys. (Clicking still also begins the mouse drag as before.)
+
+4. ARROW-KEY MOVE / ROTATE
+   - While the element is focused, handle keydown:
+       POSITIONAL objects: ArrowLeft/Right/Up/Down nudge by a sensible step. If the
+         original snaps to levels/positions, arrows step between those snap points (match
+         the source's snapping); otherwise use a small consistent step. PageUp/PageDown =
+         larger step; Home/End = min/max where meaningful.
+       ROTATABLE objects: ArrowLeft/Right (or Up/Down) rotate by a sensible angular step;
+         Shift+Arrow or Page keys = coarser step; Home = reset/zero where meaningful.
+     Respect the same limits/bounds the mouse drag enforces. call preventDefault() on the
+     keys you handle so the page doesn't scroll, but ONLY when the element is focused.
+   - After a change, update the visual (via the normal render/state path) AND update the
+     element's aria-valuenow/aria-valuetext (or aria-label) and announce the new
+     position/angle WITH UNITS through the existing aria-live region on commit. Do not
+     flood on every key; announcing each committed step is fine, but keep it concise.
+
+5. DON'T LET THE CANVAS EAT FOCUS OR KEYS
+   - Make sure canvas/global pointer or key handlers don't swallow focus or the arrow
+     keydowns for the focused element, and that focusing a draggable doesn't get
+     immediately stolen back by a redraw. Keyboard interaction must not get "stuck".
+
+================================================================================
+SELF-VERIFY (reason about the accessibility tree + event flow; user confirms live)
+================================================================================
+  [ ] Every mouse-draggable/rotatable element is reachable by Tab, in logical order, with
+      a visible focus ring, and Tab moves away afterward (no trap).
+  [ ] Clicking/tapping a draggable focuses it, so arrow keys work immediately after.
+  [ ] Arrow keys move (or rotate) the focused element; Page/Home/End behave as specified;
+      original snapping/limits respected; handled keys don't scroll the page.
+  [ ] Mouse drag still works exactly as before; both paths update the same state and match.
+  [ ] New position/angle is announced with units via the live region / aria-valuetext.
+  [ ] No changes to physics/layout/visuals/text; foundation files untouched; new styles
+      only in styles/styles.css, new logic in the sim's own JS.
+  [ ] MathJax, responsiveness, cross-browser, and existing narration still intact.
+
+================================================================================
+WHAT TO REPORT
+================================================================================
+Append a "KEYBOARD-DRAGGABLE PASS" note to the sim's ACCESSIBILITY.md listing each
+element made focusable, its role/label, the arrow-key mapping (move vs rotate, step
+sizes), and a note that final confirmation requires a human keyboard + screen-reader
+test (NVDA/VoiceOver). Do not claim verified compatibility -- a human must confirm.
+================================================================================
+END OF PROMPT
+================================================================================
