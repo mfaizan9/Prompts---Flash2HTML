@@ -389,6 +389,19 @@ Keyboard (2.1.1/2.1.2/2.4.7)
     by canvas pointer handlers, doesn't lose focus mid-drag, and that focus never gets
     trapped on it (Tab must move away normally). Changing a slider updates the same state
     object as the pointer path, so keyboard and mouse stay in sync.
+  - NUMERIC VALUE FIELDS ADJUST BY ARROW KEYS AND MOUSE WHEEL. Any field that holds a
+    numeric value (a number input, a spinner, an editable readout, or a custom value
+    control) must, WHILE IT IS FOCUSED/SELECTED, increment on ArrowUp and decrement on
+    ArrowDown by a sensible step (and support PageUp/PageDown for a larger step, Home/End
+    for min/max where meaningful), AND increase/decrease by the same step on MOUSE-WHEEL
+    scroll up/down while focused. Prefer a native <input type="number"> (arrow keys + up/
+    down spinner come for free; add a wheel handler for the wheel behavior). For a custom
+    field, implement keydown (arrows/Page/Home/End) and a wheel listener with the same
+    step. Respect the field's min/max/step and any snapping the original enforces; call
+    preventDefault() on the handled keys and on wheel (only while the field is focused) so
+    the page doesn't scroll. Every such change goes through the SAME state/render path and
+    updates the announced value WITH UNITS (see Screen-reader narration), so it stays in
+    sync with sliders, drags, and the display.
 Timing / motion (2.2.2/2.3.3)
   - No motion >5 s without a stop; nothing flashes >3x/sec. Honor prefers-reduced-
     motion: replace continuous animation with the equivalent instantaneous end state.
@@ -566,6 +579,9 @@ PHASE 4 -- SELF-VERIFY (no emulator)
     [ ] >=4.5:1 contrast; no color-only signaling; palette via CSS variables.
     [ ] Full keyboard operability, visible focus, no traps. EVERY slider works by
         keyboard (arrows + Page/Home/End), doesn't get stuck, and Tab moves away cleanly.
+    [ ] Every focused numeric value field increments/decrements by ArrowUp/Down AND mouse
+        wheel (Page/Home/End where apt), respecting min/max/step; change syncs state and
+        the announced units.
     [ ] Tab order contains ONLY interactive controls; MathJax/readouts/labels/log/canvas
         are NOT tab stops (no stray tabindex=0; tabindex=-1 if MathJax output creeps in).
     [ ] Any custom-styled control (e.g. slider) is a SEPARATE component in styles/
